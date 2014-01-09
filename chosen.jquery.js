@@ -167,6 +167,7 @@
       this.search_contains = this.options.search_contains || false;
       this.single_backstroke_delete = this.options.single_backstroke_delete != null ? this.options.single_backstroke_delete : true;
       this.max_selected_options = this.options.max_selected_options || Infinity;
+      this.autocomplete_cache = {};
       this.inherit_select_classes = this.options.inherit_select_classes || false;
       this.display_selected_options = this.options.display_selected_options != null ? this.options.display_selected_options : true;
       return this.display_disabled_options = this.options.display_disabled_options != null ? this.options.display_disabled_options : true;
@@ -314,21 +315,36 @@
     };
 
     AbstractChosen.prototype.winnow_results_remote = function() {
-      var container;
-      this.search_results.html('Loading...');
-      container = this;
-      return $.ajax({
-        url: this.options.autocomplete_path,
-        type: 'POST',
-        data: {
-          search: this.search_field.val()
-        },
-        success: function(data) {
-          container.results_data = SelectParser.ajax_results_to_array(data.results);
-          container.results_update_field();
-          return container.winnow_results_local();
+      var container, search_text;
+      search_text = this.search_field.val();
+      if (this.autocomplete_cache.hasOwnProperty(search_text)) {
+        return this.winnow_results_remote_complete(this.autocomplete_cache[search_text]);
+      } else {
+        this.update_results_content('Loading...');
+        this.results_show_container;
+        if ((this.autocomplete_timer != null)) {
+          clearTimeout(this.autocomplete_timer);
         }
-      });
+        container = this;
+        return this.autocomplete_timer = setTimeout(function() {
+          return $.ajax({
+            url: container.options.autocomplete_path,
+            type: 'POST',
+            data: {
+              search: search_text
+            },
+            success: function(data) {
+              container.autocomplete_cache[search_text] = data.results;
+              return container.winnow_results_remote_complete(data.results);
+            }
+          });
+        }, 1000);
+      }
+    };
+
+    AbstractChosen.prototype.winnow_results_remote_complete = function(results) {
+      this.results_data = SelectParser.ajax_results_to_array(results);
+      return this.winnow_results_local();
     };
 
     AbstractChosen.prototype.winnow_results_local = function() {
@@ -816,23 +832,6 @@
     };
 
     Chosen.prototype.results_show = function() {
-      var container;
-      if (this.options.autocomplete_path) {
-        if (this.autocomplete_timer != null) {
-          clearTimeout(this.autocomplete_timer);
-        }
-        container = this;
-        return this.autocomplete_timer = setTimeout(function() {
-          if (container.search_field.val().length > 0) {
-            return container.results_show_now();
-          }
-        }, 1000);
-      } else {
-        return this.results_show_now();
-      }
-    };
-
-    Chosen.prototype.results_show_now = function() {
       if (this.options.autocomplete_path && this.search_field.val().length === 0) {
         this.results_hide();
         return;
@@ -843,14 +842,18 @@
         });
         return false;
       }
+      this.results_show_container;
+      this.search_field.focus();
+      this.search_field.val(this.search_field.val());
+      return this.winnow_results();
+    };
+
+    Chosen.prototype.results_show_container = function() {
       this.container.find('.chosen-drop').css('left', 0);
       this.form_field_jq.trigger("chosen:showing_dropdown", {
         chosen: this
       });
-      this.results_showing = true;
-      this.search_field.focus();
-      this.search_field.val(this.search_field.val());
-      return this.winnow_results();
+      return this.results_showing = true;
     };
 
     Chosen.prototype.update_results_content = function(content) {
