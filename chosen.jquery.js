@@ -321,7 +321,7 @@
         return this.winnow_results_remote_complete(this.autocomplete_cache[search_text]);
       } else {
         this.update_results_content('Loading...');
-        this.results_show_container;
+        this.results_show_container();
         if ((this.autocomplete_timer != null)) {
           clearTimeout(this.autocomplete_timer);
         }
@@ -842,7 +842,7 @@
         });
         return false;
       }
-      this.results_show_container;
+      this.results_show_container();
       this.search_field.focus();
       this.search_field.val(this.search_field.val());
       return this.winnow_results();
